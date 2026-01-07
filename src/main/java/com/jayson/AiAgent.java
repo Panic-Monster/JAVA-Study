@@ -1,0 +1,93 @@
+package com.jayson;
+
+import com.alibaba.dashscope.aigc.generation.Generation;
+import com.alibaba.dashscope.aigc.generation.GenerationParam;
+import com.alibaba.dashscope.aigc.generation.GenerationResult;
+import com.alibaba.dashscope.common.Message;
+import com.alibaba.dashscope.common.Role;
+import com.alibaba.dashscope.exception.ApiException;
+import com.alibaba.dashscope.exception.InputRequiredException;
+import com.alibaba.dashscope.exception.NoApiKeyException;
+import io.reactivex.Flowable;
+import io.reactivex.schedulers.Schedulers;
+
+import java.util.Arrays;
+import java.util.concurrent.CountDownLatch;
+
+/**
+ * @author: Jayson_Y
+ * @date: 2025/12/25
+ * @project: Java_Study
+ */
+public class AiAgent {
+    public static void main(String[] args) {
+        // 1. 获取 API Key
+        String apiKey = "sk-1a48fda9c4ec49d5886e556fcf2df817";
+        if (apiKey == null || apiKey.isEmpty()) {
+            System.err.println("请设置 DASHSCOPE_API_KEY");
+            return;
+        }
+
+        // 2. 初始化 Generation 实例
+        Generation gen = new Generation();
+        CountDownLatch latch = new CountDownLatch(1);
+
+        // 3. 构建请求参数
+        GenerationParam param = GenerationParam.builder()
+                .apiKey(apiKey)
+                .model("qwen-plus")
+                .messages(Arrays.asList(
+                        Message.builder()
+                                .role(Role.USER.getValue())
+                                .content("介绍一下自己")
+                                .build()
+                ))
+                .resultFormat(GenerationParam.ResultFormat.MESSAGE)
+                .incrementalOutput(true) // 开启增量输出，流式返回
+                .build();
+        // 4. 发起流式调用并处理响应
+        try {
+            Flowable<GenerationResult> result = gen.streamCall(param);
+            StringBuilder fullContent = new StringBuilder();
+            System.out.print("AI: ");
+            result
+                    .subscribeOn(Schedulers.io()) // IO线程执行请求
+                    .observeOn(Schedulers.computation()) // 计算线程处理响应
+                    .subscribe(
+                            // onNext: 处理每个响应片段
+                            message -> {
+                                String content = message.getOutput().getChoices().get(0).getMessage().getContent();
+                                String finishReason = message.getOutput().getChoices().get(0).getFinishReason();
+                                // 输出内容
+                                System.out.print(content);
+                                fullContent.append(content);
+                                // 当 finishReason 不为 null 时，表示是最后一个 chunk，输出用量信息
+                                if (finishReason != null && !"null".equals(finishReason)) {
+                                    System.out.println("\n--- 请求用量 ---");
+                                    System.out.println("输入 Tokens：" + message.getUsage().getInputTokens());
+                                    System.out.println("输出 Tokens：" + message.getUsage().getOutputTokens());
+                                    System.out.println("总 Tokens：" + message.getUsage().getTotalTokens());
+                                }
+                                System.out.flush(); // 立即刷新输出
+                            },
+                            // onError: 处理错误
+                            error -> {
+                                System.err.println("\n请求失败: " + error.getMessage());
+                                latch.countDown();
+                            },
+                            // onComplete: 完成回调
+                            () -> {
+                                System.out.println(); // 换行
+                                // System.out.println("完整响应: " + fullContent.toString());
+                                latch.countDown();
+                            }
+                    );
+            // 主线程等待异步任务完成
+            latch.await();
+            System.out.println("程序执行完成");
+        } catch (Exception e) {
+            System.err.println("请求异常: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+}
