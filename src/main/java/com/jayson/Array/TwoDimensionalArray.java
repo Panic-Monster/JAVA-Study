@@ -1,5 +1,6 @@
 package com.jayson.Array;
 
+import java.util.Random;
 import java.util.Scanner;
 
 /**
@@ -99,7 +100,62 @@ public class TwoDimensionalArray {
         }
     }
 
-    public static void main(String[] args) {
-        test3();
+    public static void test4() {
+        /*
+        随机生成10个整数（1-100的范围）保存到数组，并倒序打印以及求平均值、求最小值和最大值的下标、并查找里面是否有8
+         */
+        Random random = new Random();
+        int[] arr = new int[10];
+        for (int i = 0; i < 10; i++) {
+            int num = random.nextInt(1, 100);
+            // System.out.print(num + " ");
+            arr[i] = num;
+        }
+        int avgNum = 0;
+
+        // 倒序打印
+        for (int i = arr.length - 1; i >= 0; i--) {
+            System.out.print(arr[i] + " ");
+        }
+        System.out.println();
+        boolean flag = false;
+        int sum = 0;
+        int max = arr[0];
+        int min = arr[0];
+        int maxIndex = 0;
+        int minIndex = 0;
+        for (int i = 0; i < arr.length; i++) {
+            if (max < arr[i]) {
+                max = arr[i];
+                maxIndex = i;
+            }
+            if (min > arr[i]) {
+                min = arr[i];
+                minIndex = i;
+            }
+            System.out.print(arr[i] + " ");
+            if (8 == arr[i]) {
+                flag = true;
+                System.out.println("生成的随机数里包含8");
+            }
+            sum += arr[i];
+        }
+        if (!flag) {
+            System.out.println("生成的随机数里不包含8");
+        }
+        avgNum = sum / arr.length;
+        System.out.println("平均值为：" + avgNum);
+        System.out.println("最大值的索引为：" + maxIndex + ",值为：" + max);
+        System.out.println("最小值的索引为：" + minIndex + ",值为：" + min);
     }
+
+    public static void main(String[] args) {
+        test4();
+    }
+    /*
+    a   a
+    z   z
+    b   韩
+    c   c
+     */
 }
